@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Consultation des Notes — OFPPT</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--bleu:#0b5394;--bleu2:#1976d2;--vert:#1e9e6a;--rouge:#d84343;--fond:#eef3f8;--carte:#ffffff;--texte:#22303e;--gris:#7b8a99;--bord:#d9e2ec}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--fond);color:var(--texte);min-height:100vh}
+header{background:linear-gradient(135deg,var(--bleu),var(--bleu2));color:#fff;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+header h1{font-size:1.25rem;font-weight:600}
+header .sub{font-size:.8rem;opacity:.85}
+.container{max-width:980px;margin:0 auto;padding:24px 16px}
+.card{background:var(--carte);border:1px solid var(--bord);border-radius:12px;padding:24px;box-shadow:0 2px 8px rgba(11,83,148,.06);margin-bottom:18px}
+.hidden{display:none!important}
+.btn{display:inline-block;border:none;border-radius:8px;padding:10px 18px;font-size:.95rem;font-weight:600;cursor:pointer;background:var(--bleu2);color:#fff;transition:.15s}
+.btn:hover{filter:brightness(1.08)} .btn:disabled{opacity:.5;cursor:wait}
+.btn.vert{background:var(--vert)} .btn.rouge{background:var(--rouge)} .btn.gris{background:#5f6f7f}
+.btn.small{padding:6px 12px;font-size:.85rem}
+input,select{width:100%;padding:10px 12px;border:1px solid var(--bord);border-radius:8px;font-size:1rem;background:#fff;color:var(--texte)}
+input:focus,select:focus{outline:2px solid var(--bleu2)}
+label{display:block;font-size:.85rem;font-weight:600;margin:12px 0 5px;color:var(--gris)}
+.tabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:2px solid var(--bord);flex-wrap:wrap}
+.tab{padding:10px 16px;cursor:pointer;border:none;background:none;font-size:.95rem;font-weight:600;color:var(--gris);border-bottom:3px solid transparent}
+.tab.active{color:var(--bleu2);border-bottom-color:var(--bleu2)}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{padding:9px 10px;border:1px solid var(--bord);text-align:center}
+th{background:#f2f7fc;color:var(--bleu);font-weight:600}
+td.g{text-align:left}
+tr:nth-child(even){background:#fafcfe}
+.note-input{width:64px;padding:5px;text-align:center}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.8rem;font-weight:700}
+.badge.ok{background:#e2f5ec;color:var(--vert)} .badge.ko{background:#fdeaea;color:var(--rouge)} .badge.n{background:#eef1f5;color:var(--gris)}
+.modules-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.module-card{border:2px solid var(--bord);border-radius:12px;padding:22px 16px;text-align:center;cursor:pointer;transition:.15s;background:#fff}
+.module-card:hover{border-color:var(--bleu2);transform:translateY(-2px);box-shadow:0 4px 12px rgba(25,118,210,.15)}
+.module-card .ic{font-size:1.9rem;margin-bottom:8px}
+.module-card .nm{font-weight:700;color:var(--bleu)}
+.msg{padding:10px 14px;border-radius:8px;margin:12px 0;font-size:.9rem}
+.msg.err{background:#fdeaea;color:var(--rouge)} .msg.ok{background:#e2f5ec;color:var(--vert)} .msg.info{background:#e8f1fb;color:var(--bleu)}
+.row{display:flex;gap:14px;flex-wrap:wrap}.row>div{flex:1;min-width:170px}
+.topbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.userchip{background:#e8f1fb;color:var(--bleu);padding:6px 14px;border-radius:20px;font-size:.85rem;font-weight:600}
+.center{text-align:center}
+.moy-box{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
+.moy-item{flex:1;min-width:130px;background:#f2f7fc;border-radius:10px;padding:14px;text-align:center}
+.moy-item .lb{font-size:.78rem;color:var(--gris);font-weight:600;text-transform:uppercase}
+.moy-item .vl{font-size:1.5rem;font-weight:700;color:var(--bleu)}
+.tblwrap{overflow-x:auto}
+.lock{font-size:.78rem;color:var(--gris);text-align:center;margin-top:10px}
+footer{text-align:center;color:var(--gris);font-size:.8rem;padding:20px}
+@media(max-width:600px){.container{padding:14px 8px}.card{padding:16px}}
+</style>
+</head>
+<body>
+
+<script id="__PUB__" type="application/json">{"v": 1, "it": 60000, "gsalt": "xn8uyVsZOgkHiJtW/9byuA==", "index": {"89af948075414772fae623e19e6b175b": {"iv": "Uliz9k8tyZ1w/3pS", "ct": "IZgljNCVHVupIdHTKlMAzBELKD3Gt8h12PWicNR9/y/I+0kjIxNDh9XBEqXvZCuNOV5WGB6IYUEf97AgreKoej0z6Dp7ZoCQ8HOD5baQU3dMF8sqvKqv53wtIqYphT5J1MIDyzzQNcaV89kSpnnTBa1bOfVCymRq8uRzGxvyxRsC/VvTZrFgU8IvfcvnQLtO7w=="}, "1650574d2aa338c957b5e582f9bd96c1": {"iv": "aAtcVllfCa1SHVRB", "ct": "lEaZRd0zucE1Vrm04bNOqOhdLgKHunYDKjj80v9J8L7uYximZ1pGf2Sc0ggI8yisle7B0p6qmeoG1C70Pm5ZtaXkK924PCG+tdcePx7Uz/Xj1TBOMuzmIEBhU7n9n5n5r7GN30z+ar2mQb8bNsGDPO/WHpLJCvdjJsdP8E/VYGnuO0LruZX+hagh39vih3HP"}, "8bd61d84036efc89df9c0bce5835fb19": {"iv": "xKdCdDPBmHZOwrKF", "ct": "BZfoCk6YkZG9rmCE5b3yRixLjPe3MhJB4H4/ECkEFekyFyx+7EQAh/BuNlfpj5vM+P7DvyNELxnf4pAkOrgHF61JF3IwYHODJK2pr42SC9xw9d8JsesrL23lvx4J2a9eoYCY1HasdUsAsXLzphkExNOUzOO0GHq2qchOXEpVAJPh6dovyOnfQig0sDBPjzHhjhIFrOA="}, "ede7d6e542f5d0ef15945354385611dd": {"iv": "3NCEzaUn4Ikvy5X6", "ct": "RUQhcgqLaCPP0mbiSwIfuRniepzEKzWggH14ZzucHKP/K7sltT+UXxpG8w1sqCvkOuON4DKvJtE63r1nZiJjHmL7Hr8ZfNh4PkreSYQSdm4k44YqV6uvqAIhwm2djwloAQDFWDSGg6kq/F9Fp872LljQMHQdkojooaJKXAemoYJj0JTdTEfvjN9XgosHnEI0Xc5ZKEg2"}, "e0d4fe8484447454edbf74175a106778": {"iv": "3JP0yS5rDi+pN2QU", "ct": "vbAqsfOdlNL21yOksAuSFtkyCAIUD3y9/keJ/k4GxdlgajYNK/vivQhezonr7FlhKhRactZbBwuHLADiu7XoEKlKXsS1GCnzoIPjuFDNM5DoItinIb1GmDIxrK05W6nTG5dw5vvRFwE9m5thju/3yAO9AGnvJaY0DmcktMqi6zWAcrUWLq3Xq7wGb4yRhdId34c="}, "4023ba3f70c19be1cc08e1115e3379a8": {"iv": "GZdHAe459YscL8v3", "ct": "BBafVQbqygQRSsokaXmG2PeA70YkslbXMzogh28R6PtyWFWe40C6B4aJzd7aScjP8x0CxAfV1dwNLutbbZ0ohsdSpd7mM91cTpC14rikRzbO9LOpXwOeifpb/5BKEmomwiMrn4SO/OXxw70OOUteJ3SN8nF62EdqAAetL0u6Yn86ZYX1xRFBD6hp93ZpbyA3tg=="}, "120032419f8624bdf70454918bc19faf": {"iv": "oCqq/QVNithcYKVn", "ct": "1yCTsXgdhlcfiBVexdwvxrKxwZ3Q/KbIecvPYITJwLiEU5EvvytMb0CZKIQF6w0KLURS45lC9dNxXb9ENqCS/7GP13q48pv7NyHq5kj2OhXvbAS9d/jiCzQz0dB79bcwnA3ntiQUNAdKGupztH1qovP9+C2iqaZmpOzmUtujLbKd+ge6tt0id4XWJx6XxOBF4shiC+/jtfJqRdU="}, "7a822660eb8664596c6d7bc62030b8da": {"iv": "+UMTdtNcURSVPI/M", "ct": "jqBvRDMA0EE+eGx6VEOnODZoFRBuwLUm7fS9FjrDZJi6NGbRByZIskq3dLNcfZuZ9Oal2ZhutcagsmdJKRb3dUcbU7/99nUIbal8p+hIKPtrKhMpwIvIb7iuw2QfDYMMNBr7w3lyqPuL2KsIQZ8q8jHoC0zaY3/iErBZNDquTC0b+djXFu0IukqvwDa5qQwug1K7tkg="}, "26b093b004ea1c68f5bcfc1d1e43d83f": {"iv": "qmoTNGW/kgTNmdkl", "ct": "8ZMo0Rq9ve04Vr5l0Lih6/YdWPje6qYB4cA41oaW1tVkwm2z44CZv2gWMU1+tdLpDSmTRiI7d+w0S5654eX3xZsX7RaybcK8dz/gbPnoqjxF0zHNt0rm7RymxaCGBM/geceRIw231lkw1Zvfj30zEMMuKdwW160ChdrojDg+TK+kfKKNFgUQiMaYCl3jIeSkEKTnrno="}, "0dab91385adb2949fa8c4a3ba2317292": {"iv": "RzPfqj8zdFciZPtD", "ct": "9yBlOpCgx3tMawiGihgmPnKYFyalqDwDUQYgFOp9whCt/fPd6UDJY+FGWkkTHBOWlCPdZZYZQcd73XUgoxGdBuvWqpeGc+8HtthevAbui3IDKFMoV7uU2t+Y8D84hbgJnmDzNg3RFCJI8I5+hBnSQ/Ie+jvg0yuSAGi7Vy0d+OAmDPhaTUOJutloWZU1rj0pNYYf8qN/LrQ="}, "083e5aadbb826a85bdef7af45dd2a79a": {"iv": "p7F0rH3ewi3+BYvI", "ct": "f4ljETQGr/fv91UTDBbeliw/M7tSIrICWS2fcog26vR4rLr0KIVdO+oNGVDPgkijWifVG4r/11suwSytcHoiqHnNZ5tdGt6+Zm3F3I16kh4p8aOh2KQmJYGEIgZI3Zz2hgdFXu8EfYvf4U8JaKTljcJgqFu1zb0oNmhWnoofKMakNSJoRl1sMIckeHvjeQLp9NU="}, "331f9f096aaba66dee1bb8afe5ac8033": {"iv": "pIMlBjoG50DdVFR/", "ct": "uTanTQljDDDfp9s2PtGnkQ7n50jQokuoPElrOEltqZ2SS2qerYuw5mFy4dNGLGNGf0vgmsFxO8l6mTNvgdAfDE1qUi2qjn6IO/8IOQgixGXfN8sUPZ5RttIpY7jdxmiQM7cyHTBm3CtjXLMxO6cpcboJ8TWFStGc3hj/K9RMVi0h/Xv25SwoJDYF4nWj4YUbWGOw4g=="}, "8886fea10d7f81976c5d3062d0015165": {"iv": "90FUE+eiadyqqG/S", "ct": "swNOx4CwfiWqJ0lBvjnLylSmm0B0MQZmxPXcHO17qFelbAKvS6CHPpq38jB9we/BpdxPzTHkQrc+NVmgZJQwYiL5OKO4LdkBxYDxBZLWJfBtTpbI4/LOIOguddgy5LKXEcnA3idCNya2KtiqHwYPN8H0/XigLUHgoTyHmGNupBl3hmXPwycDuDQyfLu3uKxHXheen2mRyg=="}, "163841743543b3caddfdd83ac3f40bc2": {"iv": "PFiNOhQVNe2L4M0w", "ct": "1DXakWGSmu7otZWfslM77u5kfad/SFVJbqcX6MhSnC0aQNHcE7GalW4Y75Nw30YxozvjhFeK8tRrVplRdzFFWeee9t8FFK2+V2roSY09E+SiVwAtvHvzLE2570s9RMkpKQqnlaoTR2UuYYgXrSqYah1NuXJCEi7hownGa+F6CsOc++xYE4xVjhttPhnP1xAdZoSAU/E="}, "95f5b3894be86fc09f19e5f6a1f782dd": {"iv": "KFjijekclzmNTxHr", "ct": "YVE/jAbAvkXJ3CSBRe0SVU5nFvIToWZZW+KTxopULmWAtJVpn+L29Rho26nM4HBY/Y36J0WoMl0cVncS635bxVsZuOzEwsuCzmlnPaiLHLOLVbFNQkNgm7IZv4MajQyvnlMUPZhE7ieggqkNuv24j/51tnyh9XlLJqehrKkTJoiMQiLUzpZ7EYhHH5rS1lZK1e4BuZaU/+LIxQ=="}, "eb0c9b9f88ba9f761e69d5132069c410": {"iv": "zeMA0Qql+f3tiwJe", "ct": "dDFm/CH3jzSpZmBi6EiyU4XjwnO4iqz9TnCrl1xYuIVqPl8DrbL5NvlsmD4Y4AP7ODAWD2DQWBxBXzr3Sn9XDyux7b+ZzRDwK/VP0OLBIfv1LNYmDsi2y1a0UgxfZlsJnAlY038W6tDYulbvgabd3Rfy6ZpWyhu5RDP2qd/5ZHDiUs96ECwIPsVBU7FPtw=="}, "1778111eff417377c17c7d06b3be6b68": {"iv": "4D2Sx9g89IamKxMg", "ct": "J4BcRQ1KsNevRSmzvPgh4D410mdBPXXRB8Rdu7P90u/f7nUlQJf4fJzqoJwkjlr0v1zTbOyq3oCeS5K/YHF1nmjnD5HM8+BSGshO+fhw9zEBYcTh7kc7r7LwQ+/USySy8JgmzEhulT6+9velmdKxzGyqk25uBYSQgHCqyndqx4RR1e3jA+uMtCKAfcSlzuSelg=="}, "ff5dff700978f4a452794970c11b5296": {"iv": "0OuOg0Iap6EDZSug", "ct": "vxAePugdo1EfTewUyjnR731Q/S8NkhH1/gWrnozVMTn4bHPA8jqlIesL8jW23kRXnysUMvextlWJfIzSTc9E5ZwANWP7cxfQ9PfFcINhafAwSUK94e+yGFa7TTpBMFW+vJ8U/KIOR4qxgFZDD4VksYvZ1mGxxwJRLchh8KfCp7Nt5uZInEBqoEMMHGXrXqZ5fUFves8="}, "33df04f9d9a9519acb66920507087197": {"iv": "qAXlfdkGADDtwOW0", "ct": "XXvvtMYhvYYGF9eyU/iVowHvas/QIDRJiqyMDABWbGbvAlZYpjRuNkreHBRpkaJBRdC6awK62PBu6dgvb2PT12W70MeaJ4sDGAW/Z8Q5HUewRzjrCM1D0J5bHk6N7UW116sKcCKom7cbBg8b1s9Pxmo6PhEmAZo7H+UmKiSJ0iVNDI0RgRdJbLXtCva7J+vIow=="}, "fd297c8588687167437f3096ec174ebe": {"iv": "Dh0V8IZJwzQh+mvz", "ct": "0kEOA9q8jqjpBP8hlbC0icaQSkr+1GmOVeCks2h3ulHGqK/Xg8fzbYTa4lnAOF3pkOiQlJpA82XuWa9oPVujFG5+5YCafh39Op1z8t5qfS5B/74eJi1AWkOxlNWf482mAs86WDWORXEqK+5xueLouNvJrvP2cFVPOviyjYl9ZAGFCxcIbrgtHi/Wuy5eSMgE"}, "8e6f3afa803597ac3b23bd3ee88245ed": {"iv": "Kd9fPwdAv2ZEQ9w5", "ct": "KkGnkVW4uFAIgDjvwsEkCm4pwdw/8tbgXhbU9kIKr9wj1uXbBeZhVh9k0TrnMtuPSmAzFHk4jXYC3KXsF9JAdCZLijA198lCpq1dAklTbFW+yQ/dSIxs3yWeTcniGrJW/z0f4fybFWsjjvpN9dcPzHhlH2Eob4IZjkasCh2/Xfelw5d+VV1Ak6lp46ymseeYBuy2jIDC"}, "a39b183652b4691537b667686c2277d4": {"iv": "mC6IMuhywndKctmj", "ct": "DqUfKij0uSdIWxFAr5u027l2K+5EPRUQvPZwVRkC/F95QGdYb3k4KPTwDziyHEbYL4rGd7KsMKDq3vahwOZK1TKDWls5dDqFJThd9fiyr7M7blyXFpvfIL64wIxtpCVg3lu1/VUHREHuSENall2qseR90g6X0mhIGHgU4yECfiC1IhK78MaBMNgGHLpLQD5GZtmA"}, "83873e6a1f10956e3639904a639d45ec": {"iv": "+qZNWK0NTYhQuMY/", "ct": "qoUoZoMOE+8QgKBVt+Y9bM/6TUt1j/2n83omloxUsUaacbLwmKhROsrAzu0bwZ6m/q0Bumq+KdjDaqzEqW6C3kEL0yFYMiVR1TW31VzOAag/73phQNmiu+6GwwkcI149Q0ELTCKk5JsI7ZZTOz88HoFsq/T5NC/oxsC+uZQs0do12EeaIgZNGhrBTjF5ar5gBhNh"}, "ae0f704881df0fb844c1ac241b4ade04": {"iv": "7sZ2gNSk7YrzfCB4", "ct": "4xlQsz1WBDKry611nFNER+jV9X3SL3NCiSfJIYuG04aWUH5m151noaBRnl8Pqylui8eU0tO6HSIR+a+QNoIy7uVOQIBgkFdRqpcd6qbjJG+85TztSTXOg4LyRdSTLocWHZivsWqRsKWeRrXxdJqmZjLkjjqTFpSdeV9I+XCa40yR1JWGpbVAE5cCR4grEJaRJes="}}}</script>
+<script id="__ADM__" type="application/json">{"v": 1, "it": 250000, "salt": "nN00fidsElBREKD442geKA==", "iv": "jQvF2crWSBpG5+ju", "ct": "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"}</script>
+
+<header>
+  <div>
+    <h1>OFPPT — Consultation des Notes</h1>
+    <div class="sub">Espace stagiaires &amp; formateur — données chiffrées 🔒</div>
+  </div>
+  <div id="hUser" class="hidden">
+    <span class="userchip" id="chipUser"></span>
+    <button class="btn small gris" onclick="logout()" style="margin-left:8px">Déconnexion</button>
+  </div>
+</header>
+
+<div class="container">
+
+<!-- ============ LOGIN ============ -->
+<div id="viewLogin">
+  <div class="card" style="max-width:430px;margin:30px auto">
+    <div class="tabs">
+      <button class="tab active" id="tabStag" onclick="loginTab('stag')">👨‍🎓 Stagiaire</button>
+      <button class="tab" id="tabAdm" onclick="loginTab('adm')">🧑‍🏫 Formateur</button>
+    </div>
+    <div id="loginStag">
+      <label>N° CIN</label>
+      <input id="inCin" placeholder="Votre N° CIN" autocomplete="off" onkeydown="if(event.key==='Enter')loginStudent()">
+      <div id="msgStag"></div>
+      <button class="btn" id="btnStag" style="width:100%;margin-top:16px" onclick="loginStudent()">Consulter mes notes</button>
+      <div class="lock">🔒 Vos notes sont chiffrées — seule votre CIN permet de les lire.</div>
+    </div>
+    <div id="loginAdm" class="hidden">
+      <label>Mot de passe formateur</label>
+      <input id="inAdmP" type="password" autocomplete="off" onkeydown="if(event.key==='Enter')loginAdmin()">
+      <div id="msgAdm"></div>
+      <button class="btn vert" id="btnAdm" style="width:100%;margin-top:16px" onclick="loginAdmin()">Connexion formateur</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ STAGIAIRE : MODULES ============ -->
+<div id="viewModules" class="hidden">
+  <div class="card">
+    <div class="topbar">
+      <div><strong id="stWelcome"></strong><div style="color:var(--gris);font-size:.85rem" id="stGroupe"></div></div>
+    </div>
+    <p style="margin-bottom:14px;color:var(--gris)">Sélectionnez un module pour consulter vos notes :</p>
+    <div class="modules-grid" id="modGrid"></div>
+  </div>
+</div>
+
+<!-- ============ STAGIAIRE : NOTES ============ -->
+<div id="viewNotes" class="hidden">
+  <div class="card">
+    <div class="topbar">
+      <div><strong id="ntModule" style="font-size:1.2rem;color:var(--bleu)"></strong><div style="color:var(--gris);font-size:.85rem" id="ntStudent"></div></div>
+      <button class="btn small gris" onclick="show('viewModules')">← Modules</button>
+    </div>
+    <div class="tblwrap"><table id="ntTable"></table></div>
+    <div class="moy-box" id="ntMoy"></div>
+    <div class="msg info" style="margin-top:16px">« — » : note non encore saisie.</div>
+  </div>
+</div>
+
+<!-- ============ ADMIN ============ -->
+<div id="viewAdmin" class="hidden">
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" data-t="aNotes" onclick="admTab('aNotes',this)">📝 Notes</button>
+      <button class="tab" data-t="aStud" onclick="admTab('aStud',this)">👥 Stagiaires</button>
+      <button class="tab" data-t="aImport" onclick="admTab('aImport',this)">📥 Import Excel</button>
+      <button class="tab" data-t="aParam" onclick="admTab('aParam',this)">⚙️ Paramètres</button>
+    </div>
+
+    <!-- Notes -->
+    <div id="aNotes">
+      <div class="row">
+        <div><label>Groupe</label><select id="selGrp" onchange="fillModSel();renderGrid()"></select></div>
+        <div><label>Module</label><select id="selMod" onchange="renderGrid()"></select></div>
+      </div>
+      <div style="margin:14px 0" class="tblwrap"><table id="gridNotes"></table></div>
+      <button class="btn vert" onclick="saveGrid()">💾 Enregistrer les notes</button>
+      <div id="msgGrid"></div>
+    </div>
+
+    <!-- Stagiaires -->
+    <div id="aStud" class="hidden">
+      <div class="row">
+        <div><label>Filtrer par groupe</label><select id="selGrpS" onchange="renderStudents()"></select></div>
+      </div>
+      <div style="margin:14px 0" class="tblwrap"><table id="gridStud"></table></div>
+      <h3 style="margin:18px 0 4px;color:var(--bleu);font-size:1rem">Ajouter un stagiaire</h3>
+      <div class="row">
+        <div><label>N° CIN</label><input id="nsCin" autocomplete="off"></div>
+        <div><label>Nom</label><input id="nsNom"></div>
+        <div><label>Prénom</label><input id="nsPre"></div>
+        <div><label>Groupe</label><select id="nsGrp"></select></div>
+      </div>
+      <button class="btn" style="margin-top:12px" onclick="addStudent()">＋ Ajouter</button>
+      <div id="msgStud"></div>
+    </div>
+
+    <!-- Import -->
+    <div id="aImport" class="hidden">
+      <p class="msg info">Format : une feuille par groupe-module, colonnes <strong>CEF (contenant la CIN), Nom, Prénom, CC1…CC4, EFM</strong>. Si une colonne <strong>CIN</strong> existe, elle est utilisée comme identifiant. Les stagiaires inconnus sont créés automatiquement.</p>
+      <label>Fichier Excel (.xlsx)</label>
+      <input type="file" id="fileXls" accept=".xlsx,.xls" onchange="loadXls(this)">
+      <div id="impMap"></div>
+      <div id="msgImp"></div>
+    </div>
+
+    <!-- Paramètres -->
+    <div id="aParam" class="hidden">
+      <p class="msg info">Formule : Moyenne contrôles = somme ÷ nombre de contrôles · Moyenne module = (Moyenne contrôles + EFM) ÷ 3</p>
+      <h3 style="color:var(--bleu);font-size:1rem;margin:20px 0 4px">Groupes et modules</h3>
+      <div id="grpList"></div>
+      <div class="row" style="margin-top:8px">
+        <div><label>Nouveau groupe</label><input id="ngName" placeholder="Ex : GE107"></div>
+        <div><label>Modules (séparés par des virgules)</label><input id="ngMods" placeholder="SAGE, GED"></div>
+      </div>
+      <button class="btn small" style="margin-top:10px" onclick="addGroup()">＋ Ajouter le groupe</button>
+      <h3 style="color:var(--bleu);font-size:1rem;margin:20px 0 4px">Mot de passe formateur</h3>
+      <div class="row">
+        <div><label>Nouveau mot de passe (min. 8 caractères)</label><input type="password" id="npass" autocomplete="new-password" placeholder="Laisser vide pour ne pas changer"></div>
+      </div>
+      <button class="btn vert" style="margin-top:14px" onclick="saveParams()">💾 Enregistrer les paramètres</button>
+      <div id="msgParam"></div>
+    </div>
+  </div>
+
+  <div class="card center">
+    <p style="color:var(--gris);margin-bottom:12px">Après vos modifications, téléchargez le site mis à jour (les données y sont rechiffrées) puis remplacez le fichier sur votre hébergement.</p>
+    <button class="btn" id="btnExport" style="font-size:1.05rem" onclick="exportSite()">⬇️ Télécharger le site mis à jour (HTML)</button>
+    <button class="btn rouge small" style="margin-left:8px" onclick="resetLocal()">Annuler les modifications locales</button>
+    <div id="msgExport"></div>
+  </div>
+</div>
+
+</div>
+<footer>Consultation des notes — accès stagiaire par N° CIN · données chiffrées (AES-256)</footer>
+
+<script>
+/* ================= CRYPTO ================= */
+var PUB = JSON.parse(document.getElementById('__PUB__').textContent);
+var ADM = JSON.parse(document.getElementById('__ADM__').textContent);
+var ENC = new TextEncoder(), DEC = new TextDecoder();
+function b64d(s){ return Uint8Array.from(atob(s), function(c){return c.charCodeAt(0);}); }
+function b64e(buf){ var b='',u=new Uint8Array(buf); for(var i=0;i<u.length;i++) b+=String.fromCharCode(u[i]); return btoa(b); }
+function hex(u){ var h=''; for(var i=0;i<u.length;i++) h+=('0'+u[i].toString(16)).slice(-2); return h; }
+function norm(v){ return String(v||'').toUpperCase().replace(/[\s.\-]/g,''); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function cryptoOK(){ return window.crypto && window.crypto.subtle; }
+async function deriveBits(secret, saltB64, iters, nbits){
+  var km = await crypto.subtle.importKey('raw', ENC.encode(secret), 'PBKDF2', false, ['deriveBits']);
+  var bits = await crypto.subtle.deriveBits({name:'PBKDF2', salt:b64d(saltB64), iterations:iters, hash:'SHA-256'}, km, nbits);
+  return new Uint8Array(bits);
+}
+async function aesKey(raw, usages){ return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, usages); }
+async function aesDecrypt(key, ivB64, ctB64){
+  var pt = await crypto.subtle.decrypt({name:'AES-GCM', iv:b64d(ivB64)}, key, b64d(ctB64));
+  return JSON.parse(DEC.decode(pt));
+}
+async function aesEncrypt(key, obj){
+  var iv = crypto.getRandomValues(new Uint8Array(12));
+  var ct = await crypto.subtle.encrypt({name:'AES-GCM', iv:iv}, key, ENC.encode(JSON.stringify(obj)));
+  return {iv:b64e(iv), ct:b64e(ct)};
+}
+
+/* ================= ÉTAT ================= */
+var DATA=null;            /* données complètes (admin uniquement, en mémoire) */
+var admState=null;        /* {key, salt, it} */
+var stRec=null;           /* dossier stagiaire déchiffré */
+var WB=null;
+
+/* ================= NAVIGATION ================= */
+var views=['viewLogin','viewModules','viewNotes','viewAdmin'];
+function show(v){ views.forEach(function(x){ document.getElementById(x).classList.toggle('hidden', x!==v); }); window.scrollTo(0,0); }
+function logout(){ stRec=null; DATA=null; admState=null;
+  document.getElementById('hUser').classList.add('hidden');
+  document.getElementById('inCin').value=''; document.getElementById('inAdmP').value='';
+  show('viewLogin'); }
+function loginTab(t){
+  document.getElementById('tabStag').classList.toggle('active',t==='stag');
+  document.getElementById('tabAdm').classList.toggle('active',t==='adm');
+  document.getElementById('loginStag').classList.toggle('hidden',t!=='stag');
+  document.getElementById('loginAdm').classList.toggle('hidden',t!=='adm');
+}
+function setMsg(id,txt,cls){ document.getElementById(id).innerHTML = txt?'<div class="msg '+cls+'">'+txt+'</div>':''; }
+
+/* ================= STAGIAIRE ================= */
+async function loginStudent(){
+  if(!cryptoOK()){ setMsg('msgStag','Navigateur non compatible. Ouvrez le site en HTTPS.','err'); return; }
+  var cin = norm(document.getElementById('inCin').value);
+  if(!cin){ setMsg('msgStag','Veuillez saisir votre N° CIN.','err'); return; }
+  var btn=document.getElementById('btnStag'); btn.disabled=true; setMsg('msgStag','Vérification…','info');
+  try{
+    var bits = await deriveBits(cin, PUB.gsalt, PUB.it, 384);
+    var id = hex(bits.slice(0,16));
+    var rec = PUB.index[id];
+    if(!rec){ setMsg('msgStag','N° CIN introuvable. Vérifiez votre saisie ou contactez votre formateur.','err'); btn.disabled=false; return; }
+    var key = await aesKey(bits.slice(16,48), ['decrypt']);
+    stRec = await aesDecrypt(key, rec.iv, rec.ct);
+  }catch(e){ setMsg('msgStag','Erreur de déchiffrement. Contactez votre formateur.','err'); btn.disabled=false; return; }
+  btn.disabled=false; setMsg('msgStag','','');
+  document.getElementById('chipUser').textContent = stRec.prenom+' '+stRec.nom;
+  document.getElementById('hUser').classList.remove('hidden');
+  document.getElementById('stWelcome').textContent = 'Bienvenue, '+stRec.prenom+' '+stRec.nom;
+  document.getElementById('stGroupe').textContent = 'Groupe : '+stRec.groupe;
+  var icons = {'SAGE':'💻','GED':'🗂️','TQG':'📊','DROIT FONDAMENTAL':'⚖️'};
+  var mods = Object.keys(stRec.modules||{});
+  document.getElementById('modGrid').innerHTML = mods.length ? mods.map(function(m){
+    return '<div class="module-card" data-mod="'+esc(m)+'"><div class="ic">'+(icons[m]||'📘')+'</div><div class="nm">'+esc(m)+'</div></div>';
+  }).join('') : '<p>Aucun module configuré pour votre groupe.</p>';
+  document.querySelectorAll('#modGrid .module-card').forEach(function(c){
+    c.addEventListener('click', function(){ openModule(c.getAttribute('data-mod')); });
+  });
+  show('viewModules');
+}
+
+function moyCC(n){ var a=(n.cc||[]).filter(function(x){return x!==null&&x!==''&&!isNaN(x);}).map(Number);
+  return a.length? a.reduce(function(s,x){return s+x;},0)/a.length : null; }
+function moyModule(n){
+  var mc=moyCC(n), efm=(n.efm!==null&&n.efm!==''&&n.efm!==undefined&&!isNaN(n.efm))?Number(n.efm):null;
+  if(mc===null || efm===null) return null;
+  return (mc+efm)/3;
+}
+function fmt(x){ return (x===null||x===undefined)?'—':(Math.round(x*100)/100).toFixed(2); }
+
+function openModule(mod){
+  var n = (stRec.modules||{})[mod] || {cc:[],efm:''};
+  document.getElementById('ntModule').textContent = mod;
+  document.getElementById('ntStudent').textContent = stRec.prenom+' '+stRec.nom+' — '+stRec.groupe;
+  var cells='', heads='';
+  for(var i=0;i<4;i++){
+    var v = (n.cc&&n.cc[i]!==undefined&&n.cc[i]!==null&&n.cc[i]!=='')?Number(n.cc[i]):null;
+    if(v!==null || i<2){ heads+='<th>Contrôle '+(i+1)+'</th>'; cells+='<td>'+fmt(v)+'</td>'; }
+  }
+  heads+='<th>EFM</th>';
+  var efm=(n.efm!==''&&n.efm!==null&&n.efm!==undefined&&!isNaN(n.efm))?Number(n.efm):null;
+  cells+='<td><strong>'+fmt(efm)+'</strong></td>';
+  document.getElementById('ntTable').innerHTML='<tr>'+heads+'</tr><tr>'+cells+'</tr>';
+  var mm=moyModule(n);
+  var badge = mm===null?'<span class="badge n">En attente</span>':(mm>=10?'<span class="badge ok">Validé</span>':'<span class="badge ko">Non validé</span>');
+  document.getElementById('ntMoy').innerHTML =
+    '<div class="moy-item"><div class="lb">Moyenne module</div><div class="vl">'+fmt(mm)+'</div><div style="margin-top:4px">'+badge+'</div></div>';
+  show('viewNotes');
+}
+
+/* ================= ADMIN : AUTH ================= */
+async function tryDecryptAdmin(pass, blob){
+  var bits = await deriveBits(pass, blob.salt, blob.it, 256);
+  var key = await aesKey(bits, ['decrypt','encrypt']);
+  var data = await aesDecrypt(key, blob.iv, blob.ct);
+  return {key:key, data:data, salt:blob.salt, it:blob.it};
+}
+function getLocalBlob(){ try{ var s=localStorage.getItem('admLocal'); return s?JSON.parse(s):null; }catch(e){ return null; } }
+async function loginAdmin(){
+  if(!cryptoOK()){ setMsg('msgAdm','Navigateur non compatible. Ouvrez le site en HTTPS.','err'); return; }
+  var p = document.getElementById('inAdmP').value;
+  if(!p){ setMsg('msgAdm','Saisissez le mot de passe.','err'); return; }
+  var btn=document.getElementById('btnAdm'); btn.disabled=true; setMsg('msgAdm','Déchiffrement…','info');
+  var res=null, local=getLocalBlob(), fromLocal=false;
+  if(local){ try{ res=await tryDecryptAdmin(p, local); fromLocal=true; }catch(e){} }
+  if(!res){ try{ res=await tryDecryptAdmin(p, ADM); }catch(e){} }
+  btn.disabled=false;
+  if(!res){ setMsg('msgAdm','Mot de passe incorrect.','err'); return; }
+  setMsg('msgAdm','','');
+  DATA=res.data; admState={key:res.key, salt:res.salt, it:res.it};
+  document.getElementById('chipUser').textContent='Formateur';
+  document.getElementById('hUser').classList.remove('hidden');
+  initAdmin(); show('viewAdmin');
+  if(fromLocal) setMsg('msgGrid','Modifications locales non publiées chargées. Pensez à exporter puis republier.','info');
+}
+async function persist(){
+  if(!admState||!DATA) return;
+  try{
+    var e = await aesEncrypt(admState.key, DATA);
+    localStorage.setItem('admLocal', JSON.stringify({salt:admState.salt, it:admState.it, iv:e.iv, ct:e.ct, ts:Date.now()}));
+  }catch(err){}
+}
+function resetLocal(){
+  if(confirm('Annuler toutes les modifications locales et revenir aux données publiées ?')){
+    localStorage.removeItem('admLocal'); location.reload();
+  }
+}
+
+/* ================= ADMIN : UI ================= */
+function admTab(t,btn){
+  ['aNotes','aStud','aImport','aParam'].forEach(function(x){ document.getElementById(x).classList.toggle('hidden',x!==t); });
+  document.querySelectorAll('#viewAdmin .tab').forEach(function(b){ b.classList.toggle('active',b===btn); });
+}
+function grpOptions(sel,withAll){
+  var o = withAll?'<option value="*">Tous les groupes</option>':'';
+  Object.keys(DATA.groups).sort().forEach(function(g){ o+='<option>'+esc(g)+'</option>'; });
+  sel.innerHTML=o;
+}
+function initAdmin(){
+  grpOptions(document.getElementById('selGrp'),false);
+  grpOptions(document.getElementById('selGrpS'),true);
+  grpOptions(document.getElementById('nsGrp'),false);
+  fillModSel(); renderGrid(); renderStudents(); renderParams();
+}
+function fillModSel(){
+  var g=document.getElementById('selGrp').value;
+  document.getElementById('selMod').innerHTML=(DATA.groups[g]||[]).map(function(m){return '<option>'+esc(m)+'</option>';}).join('');
+}
+function studentsOf(g){
+  return Object.keys(DATA.students).filter(function(c){return DATA.students[c].groupe===g;})
+    .sort(function(a,b){ return (DATA.students[a].nom+DATA.students[a].prenom).localeCompare(DATA.students[b].nom+DATA.students[b].prenom); });
+}
+function renderGrid(){
+  var g=document.getElementById('selGrp').value, m=document.getElementById('selMod').value;
+  var rows=studentsOf(g);
+  var h='<tr><th>CIN</th><th>Nom</th><th>Prénom</th><th>CC1</th><th>CC2</th><th>CC3</th><th>CC4</th><th>EFM</th><th>Moy.</th></tr>';
+  rows.forEach(function(cin){
+    var s=DATA.students[cin], n=(DATA.notes[cin]||{})[m]||{cc:[],efm:''};
+    h+='<tr data-cin="'+esc(cin)+'"><td>'+esc(cin)+'</td><td class="g">'+esc(s.nom)+'</td><td class="g">'+esc(s.prenom)+'</td>';
+    for(var i=0;i<4;i++){
+      var v=(n.cc&&n.cc[i]!==undefined&&n.cc[i]!==null)?n.cc[i]:'';
+      h+='<td><input class="note-input" data-i="'+i+'" type="number" min="0" max="20" step="0.25" value="'+esc(v)+'"></td>';
+    }
+    h+='<td><input class="note-input efm" type="number" min="0" max="20" step="0.25" value="'+esc(n.efm!==undefined&&n.efm!==null?n.efm:'')+'"></td>';
+    h+='<td>'+fmt(moyModule(n))+'</td></tr>';
+  });
+  document.getElementById('gridNotes').innerHTML = rows.length?h:'<tr><td>Aucun stagiaire dans ce groupe. Ajoutez-les dans l\'onglet Stagiaires ou via Import Excel.</td></tr>';
+}
+function saveGrid(){
+  var m=document.getElementById('selMod').value;
+  document.querySelectorAll('#gridNotes tr[data-cin]').forEach(function(tr){
+    var cin=tr.getAttribute('data-cin');
+    var cc=[]; tr.querySelectorAll('input[data-i]').forEach(function(inp){ cc[Number(inp.getAttribute('data-i'))]= inp.value===''?null:Number(inp.value); });
+    var efm=tr.querySelector('input.efm').value; efm = efm===''?'':Number(efm);
+    if(!DATA.notes[cin]) DATA.notes[cin]={};
+    DATA.notes[cin][m]={cc:cc,efm:efm};
+  });
+  persist(); renderGrid(); setMsg('msgGrid','Notes enregistrées ✔ — téléchargez le site mis à jour pour publier.','ok');
+}
+function renderStudents(){
+  var g=document.getElementById('selGrpS').value;
+  var cins=Object.keys(DATA.students).filter(function(c){return g==='*'||DATA.students[c].groupe===g;})
+    .sort(function(a,b){return (DATA.students[a].groupe+DATA.students[a].nom).localeCompare(DATA.students[b].groupe+DATA.students[b].nom);});
+  var h='<tr><th>CIN</th><th>Nom</th><th>Prénom</th><th>Groupe</th><th></th></tr>';
+  cins.forEach(function(c){ var s=DATA.students[c];
+    h+='<tr><td>'+esc(c)+'</td><td class="g">'+esc(s.nom)+'</td><td class="g">'+esc(s.prenom)+'</td><td>'+esc(s.groupe)+'</td>'+
+       '<td><button class="btn rouge small" data-del="'+esc(c)+'">Suppr.</button></td></tr>'; });
+  document.getElementById('gridStud').innerHTML=h;
+  document.querySelectorAll('#gridStud [data-del]').forEach(function(b){
+    b.addEventListener('click', function(){ delStudent(b.getAttribute('data-del')); });
+  });
+}
+function addStudent(){
+  var cin=norm(document.getElementById('nsCin').value);
+  if(!cin){ setMsg('msgStud','Le N° CIN est obligatoire.','err'); return; }
+  DATA.students[cin]={ nom:document.getElementById('nsNom').value.trim().toUpperCase(),
+    prenom:document.getElementById('nsPre').value.trim().toUpperCase(),
+    groupe:document.getElementById('nsGrp').value };
+  persist(); renderStudents(); renderGrid();
+  ['nsCin','nsNom','nsPre'].forEach(function(i){document.getElementById(i).value='';});
+  setMsg('msgStud','Stagiaire ajouté ✔','ok');
+}
+function delStudent(cin){
+  if(!confirm('Supprimer '+DATA.students[cin].nom+' '+DATA.students[cin].prenom+' ?')) return;
+  delete DATA.students[cin]; delete DATA.notes[cin];
+  persist(); renderStudents(); renderGrid();
+}
+
+/* ================= IMPORT EXCEL ================= */
+function loadXls(inp){
+  var f=inp.files[0]; if(!f) return;
+  var r=new FileReader();
+  r.onload=function(e){
+    WB=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+    var grpOpts=Object.keys(DATA.groups).sort();
+    var h='<h3 style="color:var(--bleu);font-size:1rem;margin:16px 0 8px">Feuilles détectées — associez chaque feuille :</h3>';
+    WB.SheetNames.forEach(function(sn,ix){
+      var guessG='';
+      grpOpts.forEach(function(g){ if(sn.toUpperCase().indexOf(g)>-1) guessG=g; });
+      var mods = guessG? DATA.groups[guessG] : DATA.groups[grpOpts[0]]||[];
+      h+='<div class="row" style="align-items:end;margin-bottom:8px;border-bottom:1px dashed var(--bord);padding-bottom:8px">'+
+        '<div><label>Feuille</label><input value="'+esc(sn)+'" disabled id="shn'+ix+'"></div>'+
+        '<div><label>Groupe</label><select id="shg'+ix+'" data-ix="'+ix+'" class="shgsel">'+grpOpts.map(function(g){return '<option'+(g===guessG?' selected':'')+'>'+esc(g)+'</option>';}).join('')+'</select></div>'+
+        '<div><label>Module</label><select id="shm'+ix+'">'+mods.map(function(m){return '<option>'+esc(m)+'</option>';}).join('')+'</select></div>'+
+        '<div style="flex:0"><label>&nbsp;</label><input type="checkbox" id="shc'+ix+'" checked style="width:22px;height:22px"></div></div>';
+    });
+    h+='<button class="btn vert" style="margin-top:10px" id="btnImp">📥 Importer les feuilles cochées</button>';
+    document.getElementById('impMap').innerHTML=h;
+    document.querySelectorAll('.shgsel').forEach(function(sel){
+      sel.addEventListener('change', function(){ refreshModSel(sel.getAttribute('data-ix')); });
+    });
+    document.getElementById('btnImp').addEventListener('click', doImport);
+  };
+  r.readAsArrayBuffer(f);
+}
+function refreshModSel(ix){
+  var g=document.getElementById('shg'+ix).value;
+  document.getElementById('shm'+ix).innerHTML=(DATA.groups[g]||[]).map(function(m){return '<option>'+esc(m)+'</option>';}).join('');
+}
+function doImport(){
+  if(!WB) return;
+  var count=0, created=0;
+  WB.SheetNames.forEach(function(sn,ix){
+    if(!document.getElementById('shc'+ix).checked) return;
+    var g=document.getElementById('shg'+ix).value, m=document.getElementById('shm'+ix).value;
+    var rows=XLSX.utils.sheet_to_json(WB.Sheets[sn],{defval:''});
+    rows.forEach(function(r){
+      var keys={}; Object.keys(r).forEach(function(k){ keys[k.trim().toUpperCase()]=r[k]; });
+      var id=norm(keys['CIN']||keys['CEF']); if(!id) return;
+      if(!DATA.students[id]){ DATA.students[id]={nom:String(keys['NOM']||'').trim(),prenom:String(keys['PRÉNOM']||keys['PRENOM']||'').trim(),groupe:g}; created++; }
+      else { DATA.students[id].groupe=g; }
+      var cc=[];
+      for(var i=1;i<=4;i++){ var v=keys['CC'+i]; cc.push((v===''||v===undefined||isNaN(v))?null:Number(v)); }
+      var efm=keys['EFM']; efm=(efm===''||efm===undefined||isNaN(efm))?'':Number(efm);
+      if(!DATA.notes[id]) DATA.notes[id]={};
+      DATA.notes[id][m]={cc:cc,efm:efm};
+      count++;
+    });
+  });
+  persist(); initAdmin(); admTab('aImport',document.querySelector('[data-t="aImport"]'));
+  setMsg('msgImp',count+' lignes importées ('+created+' nouveaux stagiaires) ✔ — téléchargez le site mis à jour pour publier.','ok');
+}
+
+/* ================= PARAMÈTRES ================= */
+function renderParams(){
+  var h='';
+  Object.keys(DATA.groups).sort().forEach(function(g){
+    h+='<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap">'+
+      '<strong style="min-width:70px;color:var(--bleu)">'+esc(g)+'</strong>'+
+      '<input style="flex:1;min-width:200px" value="'+esc(DATA.groups[g].join(', '))+'" data-grp="'+esc(g)+'" class="grpmods">'+
+      '<button class="btn rouge small" data-delg="'+esc(g)+'">Suppr.</button></div>';
+  });
+  document.getElementById('grpList').innerHTML=h;
+  document.querySelectorAll('#grpList [data-delg]').forEach(function(b){
+    b.addEventListener('click', function(){ delGroup(b.getAttribute('data-delg')); });
+  });
+}
+function addGroup(){
+  var n=document.getElementById('ngName').value.trim().toUpperCase();
+  var mods=document.getElementById('ngMods').value.split(',').map(function(x){return x.trim().toUpperCase();}).filter(Boolean);
+  if(!n||!mods.length){ setMsg('msgParam','Nom du groupe et au moins un module requis.','err'); return; }
+  DATA.groups[n]=mods; persist(); initAdmin(); setMsg('msgParam','Groupe ajouté ✔','ok');
+}
+function delGroup(g){
+  if(!confirm('Supprimer le groupe '+g+' ? (les stagiaires du groupe ne seront plus visibles)')) return;
+  delete DATA.groups[g]; persist(); initAdmin();
+}
+async function saveParams(){
+  document.querySelectorAll('.grpmods').forEach(function(inp){
+    DATA.groups[inp.getAttribute('data-grp')]=inp.value.split(',').map(function(x){return x.trim().toUpperCase();}).filter(Boolean);
+  });
+  var np=document.getElementById('npass').value;
+  if(np){
+    if(np.length<8){ setMsg('msgParam','Mot de passe trop court (min. 8 caractères).','err'); return; }
+    var salt=b64e(crypto.getRandomValues(new Uint8Array(16)));
+    var bits=await deriveBits(np, salt, ADM.it, 256);
+    admState={key:await aesKey(bits,['decrypt','encrypt']), salt:salt, it:ADM.it};
+    document.getElementById('npass').value='';
+  }
+  await persist(); initAdmin();
+  setMsg('msgParam','Paramètres enregistrés ✔'+(np?' Nouveau mot de passe actif — exportez et republiez pour qu\'il s\'applique en ligne.':'')+' ','ok');
+}
+
+/* ================= EXPORT SITE ================= */
+async function exportSite(){
+  if(!DATA||!admState) return;
+  var btn=document.getElementById('btnExport'); btn.disabled=true;
+  try{
+    var ids=Object.keys(DATA.students);
+    var pub={v:1, it:PUB.it, gsalt:b64e(crypto.getRandomValues(new Uint8Array(16))), index:{}};
+    for(var i=0;i<ids.length;i++){
+      var id=ids[i], s=DATA.students[id];
+      setMsg('msgExport','Chiffrement des dossiers stagiaires : '+(i+1)+' / '+ids.length+'…','info');
+      var modules={};
+      (DATA.groups[s.groupe]||[]).forEach(function(m){ modules[m]=(DATA.notes[id]||{})[m]||{cc:[],efm:''}; });
+      var rec={nom:s.nom, prenom:s.prenom, groupe:s.groupe, modules:modules};
+      var bits=await deriveBits(norm(id), pub.gsalt, pub.it, 384);
+      var key=await aesKey(bits.slice(16,48),['encrypt']);
+      pub.index[hex(bits.slice(0,16))]=await aesEncrypt(key, rec);
+    }
+    setMsg('msgExport','Chiffrement des données formateur…','info');
+    var admEnc=await aesEncrypt(admState.key, DATA);
+    var adm={v:1, it:ADM.it, salt:admState.salt, iv:admEnc.iv, ct:admEnc.ct};
+
+    document.getElementById('__PUB__').textContent=JSON.stringify(pub);
+    document.getElementById('__ADM__').textContent=JSON.stringify(adm);
+    var clone=document.documentElement.cloneNode(true);
+    clone.querySelectorAll('#viewModules,#viewNotes,#viewAdmin,#hUser,#loginAdm').forEach(function(el){el.classList.add('hidden');});
+    clone.querySelector('#viewLogin').classList.remove('hidden');
+    clone.querySelector('#loginStag').classList.remove('hidden');
+    clone.querySelector('#tabStag').classList.add('active');
+    clone.querySelector('#tabAdm').classList.remove('active');
+    clone.querySelectorAll('#modGrid,#ntTable,#ntMoy,#gridNotes,#gridStud,#grpList,#impMap,#msgImp,#msgGrid,#msgStud,#msgParam,#msgStag,#msgAdm,#msgExport').forEach(function(el){el.innerHTML='';});
+    clone.querySelectorAll('#stWelcome,#stGroupe,#ntModule,#ntStudent,#chipUser').forEach(function(el){el.textContent='';});
+    clone.querySelectorAll('input').forEach(function(i){ i.removeAttribute('value'); });
+    var html='<!DOCTYPE html>\n<html lang="fr">'+clone.innerHTML+'</html>';
+    var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download='notes-stagiaires.html'; a.click();
+    /* garder aussi la version locale à jour */
+    var pubOld=PUB, admOld=ADM; PUB=pub; ADM=adm;
+    setMsg('msgExport','Site généré et téléchargé ✔ Remplacez le fichier sur votre hébergement.','ok');
+  }catch(e){
+    setMsg('msgExport','Erreur lors de la génération : '+esc(e.message||e),'err');
+  }
+  btn.disabled=false;
+}
+
+/* init */
+show('viewLogin');
+if(!cryptoOK()){
+  setMsg('msgStag','⚠️ Ce site nécessite HTTPS (ou une ouverture locale du fichier) pour fonctionner.','err');
+}
+</script>
+</body>
+</html>
